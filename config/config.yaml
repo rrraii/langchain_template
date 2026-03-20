@@ -1,0 +1,78 @@
+﻿runtime:
+  active_provider: qwen
+  rerank_provider: qwen
+  http_proxy: null
+  https_proxy: null
+  default_collection_name: demo_collection
+  default_persist_directory: data/index/chroma
+  top_k: 4
+  chunk_size: 500
+  chunk_overlap: 100
+  hybrid_rrf_k: 60
+  response_language: zh-CN
+  response_format: markdown
+  answer_style: balanced
+  default_output_mode: concise
+  log_level: INFO
+  third_party_log_level: WARNING
+  log_file: logs/lc_templates.log
+  max_citations: 3
+  routing_confidence_threshold: 0.55
+  rag_no_answer_message: "根据提供的上下文，我还不能可靠回答这个问题。"
+
+providers:
+  openai:
+    type: openai_compatible
+    enabled: true
+    api_key: your_openai_api_key
+    base_url: https://api.openai.com/v1
+    chat_model: gpt-4.1-mini
+    reasoning_model: gpt-5-mini
+    embedding_model: text-embedding-3-small
+    embedding_dimensions: 1536
+    rerank_model: ""
+    temperature: 0.1
+    request_timeout: 20
+    max_retries: 1
+
+  qwen:
+    type: openai_compatible
+    enabled: true
+    api_key: DASHSCOPE_API_KEY
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    chat_model: glm-4.7
+    reasoning_model: deepseek-r1
+    embedding_model: text-embedding-v1
+    embedding_dimensions: 1536
+    rerank_model: gte-rerank-v2
+    temperature: 0.1
+    request_timeout: 200
+    max_retries: 1
+
+  deepseek:
+    type: openai_compatible
+    enabled: true
+    api_key: your_deepseek_api_key
+    base_url: https://api.deepseek.com/v1
+    chat_model: deepseek-chat
+    reasoning_model: deepseek-reasoner
+    embedding_model: ""
+    embedding_dimensions: null
+    rerank_model: ""
+    temperature: 0.1
+    request_timeout: 20
+    max_retries: 1
+
+  ollama:
+    type: ollama
+    enabled: true
+    api_key: ""
+    base_url: http://localhost:11434
+    chat_model: qwen3:4b
+    reasoning_model: qwen3:4b
+    embedding_model: bge-m3
+    embedding_dimensions: 1024
+    rerank_model: ""
+    temperature: 0.1
+    request_timeout: 60
+    max_retries: 2

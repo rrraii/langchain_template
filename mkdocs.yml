@@ -1,0 +1,16 @@
+site_name: langchain12-templates
+site_description: Engineering-ready LangChain templates for chat, agents, and RAG workflows
+repo_url: https://github.com/your-org/langchain12-templates
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+nav:
+  - Home: index.md
+  - Chinese: index.zh-CN.md
+  - Architecture: architecture.md
+  - Configuration: configuration.md
+  - CLI: cli.md
+  - API: api.md
