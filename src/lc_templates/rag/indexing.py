@@ -29,7 +29,7 @@ def resolve_collection_name(
 
     resolved_settings = settings or get_settings()
     resolved_provider_name = provider_name or resolved_settings.get_active_provider_name()
-    provider = resolved_settings.get_provider(resolved_provider_name)
+    provider = resolved_settings.get_provider_definition(resolved_provider_name)
     model_name = embedding_model or provider.embedding_model or "embedding"
     dimension = embedding_dimensions or provider.embedding_dimensions
     suffix_parts = [resolved_provider_name, _slugify_embedding_value(model_name)]

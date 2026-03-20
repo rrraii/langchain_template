@@ -1,5 +1,6 @@
 
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from lc_templates.app import TemplateApp
@@ -144,4 +145,7 @@ class AppFacadeTests(unittest.TestCase):
         self.assertEqual(result.active_provider, app.settings.get_active_provider_name())
         self.assertTrue(result.package_version)
         self.assertGreaterEqual(len(result.providers), 1)
-        self.assertIn("data\\index\\chroma", result.default_persist_directory)
+        self.assertEqual(
+            Path(result.default_persist_directory).parts[-3:],
+            ("data", "index", "chroma"),
+        )

@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 
 from lc_templates.core.config import resolve_runtime_path
 from lc_templates.rag.indexing import resolve_collection_name
@@ -19,5 +20,6 @@ class IndexingTests(unittest.TestCase):
         path = resolve_runtime_path("logs/lc_templates.log")
 
         self.assertIsNotNone(path)
-        self.assertTrue(str(path).endswith("logs\\lc_templates.log"))
-        self.assertNotIn("examples\\logs", str(path))
+        resolved = Path(path)
+        self.assertEqual(resolved.parts[-2:], ("logs", "lc_templates.log"))
+        self.assertNotIn("examples", resolved.parts)

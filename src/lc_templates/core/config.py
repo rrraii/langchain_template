@@ -121,11 +121,14 @@ class AppSettings(BaseModel):
     runtime: RuntimeSettings = Field(default_factory=RuntimeSettings)
     providers: ProvidersSettings = Field(default_factory=ProvidersSettings)
 
-    def get_provider(self, provider_name: str) -> ProviderSettings:
+    def get_provider_definition(self, provider_name: str) -> ProviderSettings:
         providers_dict = self.providers.model_dump()
         if provider_name not in providers_dict:
             raise KeyError(f"Provider not found: {provider_name}")
-        provider = getattr(self.providers, provider_name)
+        return getattr(self.providers, provider_name)
+
+    def get_provider(self, provider_name: str) -> ProviderSettings:
+        provider = self.get_provider_definition(provider_name)
         if not provider.enabled:
             raise ValueError(f"Provider is disabled: {provider_name}")
         if provider.type == "openai_compatible" and provider.has_placeholder_api_key():

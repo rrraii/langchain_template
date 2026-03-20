@@ -7,8 +7,15 @@ from lc_templates.core.models import build_embeddings
 
 class ModelFactoryTests(unittest.TestCase):
     def test_openai_compatible_non_openai_embeddings_disable_tiktoken(self):
-        with patch("lc_templates.core.models.OpenAIEmbeddings") as mocked:
-            build_embeddings(provider_name="qwen")
+        provider = ProviderSettings(
+            type="openai_compatible",
+            api_key="sk-test",
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            embedding_model="text-embedding-v1",
+        )
+        with patch("lc_templates.core.models._resolve_provider", return_value=("qwen", provider)):
+            with patch("lc_templates.core.models.OpenAIEmbeddings") as mocked:
+                build_embeddings(provider_name="qwen")
 
         mocked.assert_called_once()
         kwargs = mocked.call_args.kwargs

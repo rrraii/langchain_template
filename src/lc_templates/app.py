@@ -183,7 +183,7 @@ class TemplateApp:
         documents = self.load_documents(path)
         chunks = self.split_documents(documents, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
         resolved_provider_name = provider_name or self.settings.get_active_provider_name()
-        provider = self.settings.get_provider(resolved_provider_name)
+        provider = self.settings.get_provider_definition(resolved_provider_name)
         resolved_collection_name = resolve_collection_name(
             collection_name,
             provider_name=resolved_provider_name,
