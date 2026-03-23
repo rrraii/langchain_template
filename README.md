@@ -10,7 +10,8 @@ This repository is designed to be easy to clone, configure, and extend for real 
 - A high-level `TemplateApp` facade for common application flows
 - Chat, streaming, summarization, classification, extraction, routing, agent, memory-agent, and RAG templates
 - Structured RAG with citation validation and no-answer fallback
-- Configurable LangChain 1.2 agent middleware for tool limits, PII protection, memory summarization, model fallback, and dynamic model selection
+- Configurable LangChain 1.2 agent middleware for tool limits, PII protection, memory summarization, model fallback, dynamic model selection, and current-turn priority guarding
+- SQLite-backed persistent memory for `memory_agent`, with thread-level maintenance helpers
 - Middleware profiles: `safe`, `balanced`, `aggressive`, and `custom`
 - Stable result schemas with `trace_id`, `latency_ms`, fallback metadata, normalized payloads, and hook events
 - Event hooks for app-level observability and custom integrations
@@ -102,6 +103,8 @@ lc-templates route "Please summarize this meeting note."
 lc-templates run "Please summarize this meeting note."
 lc-templates run "What should patients with hypertension pay attention to?" --use-rag --collection-name demo_collection__qwen__text-embedding-v1__1536d
 lc-templates agent "Calculate (15 + 27) * 3 and tell me the current time." --output json
+lc-templates memory-agent demo-thread "Remember that my name is Xiao Wang."
+lc-templates memory-clear demo-thread
 lc-templates doctor --output verbose
 lc-templates config --output json
 lc-templates index examples/data/medical_demo.txt
@@ -121,6 +124,7 @@ Frequently used runtime fields:
 - `runtime.default_persist_directory`
 - `runtime.routing_confidence_threshold`
 - `runtime.rag_no_answer_message`
+- `runtime.memory.*`
 - `runtime.middleware`
 
 Frequently used provider fields:
@@ -142,6 +146,7 @@ Middleware fields:
 - `runtime.middleware.model_fallback_enabled`
 - `runtime.middleware.dynamic_model_selection_enabled`
 - `runtime.middleware.dynamic_model_selection_message_threshold`
+- `runtime.middleware.context_guard.*`
 - `runtime.middleware.pii.*`
 - `runtime.middleware.summarization.*`
 
@@ -160,6 +165,9 @@ See full parameter docs in:
 - `TemplateApp.run_display`
 - `TemplateApp.agent`
 - `TemplateApp.memory_agent`
+- `TemplateApp.clear_memory_thread`
+- `TemplateApp.copy_memory_thread`
+- `TemplateApp.prune_memory_threads`
 - `TemplateApp.ask_rag_structured`
 - `TemplateApp.ask_rag_rendered`
 - `TemplateApp.index_file`
@@ -181,6 +189,7 @@ Common schemas:
 - `ExtractionResult`
 - `GroundedAnswer`
 - `KnowledgeBaseBuildResult`
+- `MemoryThreadOperationResult`
 - `RouteDecision`
 - `TaskBundleResult`
 

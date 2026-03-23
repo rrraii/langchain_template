@@ -77,6 +77,33 @@ def _build_parser() -> argparse.ArgumentParser:
     memory.add_argument("text")
     memory.add_argument("--output", choices=["concise", "verbose", "json"], default=None)
 
+    memory_clear = subparsers.add_parser(
+        "memory-clear",
+        help="Delete all persisted checkpoints for a memory thread.",
+    )
+    memory_clear.add_argument("thread_id")
+    memory_clear.add_argument("--output", choices=["concise", "verbose", "json"], default=None)
+
+    memory_copy = subparsers.add_parser(
+        "memory-copy",
+        help="Copy persisted checkpoints from one memory thread to another.",
+    )
+    memory_copy.add_argument("source_thread_id")
+    memory_copy.add_argument("target_thread_id")
+    memory_copy.add_argument("--output", choices=["concise", "verbose", "json"], default=None)
+
+    memory_prune = subparsers.add_parser(
+        "memory-prune",
+        help="Prune persisted checkpoints for one or more memory threads.",
+    )
+    memory_prune.add_argument("--thread-ids", nargs="+", required=True)
+    memory_prune.add_argument(
+        "--strategy",
+        choices=["keep_latest", "delete"],
+        default="keep_latest",
+    )
+    memory_prune.add_argument("--output", choices=["concise", "verbose", "json"], default=None)
+
     rag = subparsers.add_parser("rag", help="Run RAG against an indexed collection.")
     rag.add_argument("question")
     rag.add_argument("--persist-directory", default=None)
@@ -233,6 +260,47 @@ def main(argv: list[str] | None = None) -> int:
                 app.memory_agent_display(
                     args.thread_id,
                     args.text,
+                    verbose=output_mode == "verbose",
+                )
+            )
+        return 0
+    if args.command == "memory-clear":
+        output_mode = _resolve_output_mode(app, args)
+        if output_mode == "json":
+            print(to_pretty_json(app.clear_memory_thread(args.thread_id)))
+        else:
+            print(app.clear_memory_thread_display(args.thread_id, verbose=output_mode == "verbose"))
+        return 0
+    if args.command == "memory-copy":
+        output_mode = _resolve_output_mode(app, args)
+        if output_mode == "json":
+            print(
+                to_pretty_json(
+                    app.copy_memory_thread(args.source_thread_id, args.target_thread_id)
+                )
+            )
+        else:
+            print(
+                app.copy_memory_thread_display(
+                    args.source_thread_id,
+                    args.target_thread_id,
+                    verbose=output_mode == "verbose",
+                )
+            )
+        return 0
+    if args.command == "memory-prune":
+        output_mode = _resolve_output_mode(app, args)
+        if output_mode == "json":
+            print(
+                to_pretty_json(
+                    app.prune_memory_threads(args.thread_ids, strategy=args.strategy)
+                )
+            )
+        else:
+            print(
+                app.prune_memory_threads_display(
+                    args.thread_ids,
+                    strategy=args.strategy,
                     verbose=output_mode == "verbose",
                 )
             )

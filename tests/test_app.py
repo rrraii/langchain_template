@@ -12,6 +12,7 @@ from lc_templates.core.schemas import (
     GroundedAnswer,
     HealthReport,
     KnowledgeBaseBuildResult,
+    MemoryThreadOperationResult,
     RouteDecision,
     TaskBundleResult,
     WorkflowExecutionResult,
@@ -208,6 +209,43 @@ class AppFacadeTests(unittest.TestCase):
         app = TemplateApp()
         result = app.doctor_display()
         self.assertTrue(result)
+
+    def test_clear_memory_thread_returns_operation_result(self):
+        mocked_checkpointer = unittest.mock.Mock()
+        with patch("lc_templates.app.build_memory_checkpointer", return_value=mocked_checkpointer):
+            app = TemplateApp()
+            result = app.clear_memory_thread("thread-1")
+
+        self.assertIsInstance(result, MemoryThreadOperationResult)
+        self.assertEqual(result.action, "clear_memory_thread")
+        self.assertEqual(result.thread_id, "thread-1")
+        mocked_checkpointer.delete_thread.assert_called_once_with("thread-1")
+
+    def test_copy_memory_thread_returns_operation_result(self):
+        mocked_checkpointer = unittest.mock.Mock()
+        with patch("lc_templates.app.build_memory_checkpointer", return_value=mocked_checkpointer):
+            app = TemplateApp()
+            result = app.copy_memory_thread("source-thread", "target-thread")
+
+        self.assertIsInstance(result, MemoryThreadOperationResult)
+        self.assertEqual(result.action, "copy_memory_thread")
+        self.assertEqual(result.thread_id, "source-thread")
+        self.assertEqual(result.target_thread_id, "target-thread")
+        mocked_checkpointer.copy_thread.assert_called_once_with("source-thread", "target-thread")
+
+    def test_prune_memory_threads_returns_operation_result(self):
+        mocked_checkpointer = unittest.mock.Mock()
+        with patch("lc_templates.app.build_memory_checkpointer", return_value=mocked_checkpointer):
+            app = TemplateApp()
+            result = app.prune_memory_threads(["thread-1", "thread-2"], strategy="delete")
+
+        self.assertIsInstance(result, MemoryThreadOperationResult)
+        self.assertEqual(result.action, "prune_memory_threads")
+        self.assertEqual(result.meta.model_name, "delete")
+        mocked_checkpointer.prune.assert_called_once_with(
+            ["thread-1", "thread-2"],
+            strategy="delete",
+        )
 
     def test_on_event_receives_completed_result_events(self):
         classification = ClassificationResult(label="chat", reason="fallback", confidence=0.9)

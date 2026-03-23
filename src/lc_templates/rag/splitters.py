@@ -13,6 +13,6 @@ def split_documents(
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size or settings.chunk_size,
         chunk_overlap=chunk_overlap if chunk_overlap is not None else settings.chunk_overlap,
-        separators=["\n\n", "\n", "。", "！", "？", "；", "，", " ", ""],
+        separators=["\n\n", "\n", "。", "！", "？", "；", " ", ""],
     )
     return splitter.split_documents(documents)

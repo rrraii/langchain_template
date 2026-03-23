@@ -16,6 +16,7 @@ from lc_templates.chains.prompt_chain import summarize_text
 from lc_templates.chains.streaming import batch_chat, stream_chat
 from lc_templates.chains.structured_output import classify_text, extract_entities
 from lc_templates.chains.tasks import run_text_tasks
+from lc_templates.core.checkpoint import build_memory_checkpointer
 from lc_templates.core.config import (
     get_resolved_config_path,
     get_settings,
@@ -32,6 +33,7 @@ from lc_templates.core.output import (
     render_grounded_answer,
     render_health_report,
     render_knowledge_base_result,
+    render_memory_operation_result,
     render_route_decision,
     render_task_result,
     render_workflow_execution_result,
@@ -46,6 +48,7 @@ from lc_templates.core.schemas import (
     HealthReport,
     HealthSummary,
     KnowledgeBaseBuildResult,
+    MemoryThreadOperationResult,
     ProviderStatus,
     ResultEnvelope,
     RouteDecision,
@@ -372,6 +375,127 @@ class TemplateApp:
             detail_level="verbose" if verbose else "concise",
         )
 
+    def _memory_storage_path(self) -> str:
+        memory = self.settings.runtime.memory
+        if memory.backend != "sqlite":
+            return ""
+        resolved = resolve_runtime_path(memory.sqlite_path)
+        return str(resolved) if resolved else memory.sqlite_path
+
+    def clear_memory_thread(self, thread_id: str) -> MemoryThreadOperationResult:
+        started_at = perf_counter()
+        checkpointer = build_memory_checkpointer()
+        if not hasattr(checkpointer, "delete_thread"):
+            result = MemoryThreadOperationResult(
+                action="clear_memory_thread",
+                thread_id=thread_id,
+                backend=self.settings.runtime.memory.backend,
+                storage_path=self._memory_storage_path(),
+                status="unavailable",
+                fallback_used=True,
+                error_reason="memory_backend_missing_delete_thread",
+                meta=ExecutionMetadata(operation="memory_admin"),
+            )
+            return self._finalize_result(result, started_at=started_at, operation="memory_admin")
+        checkpointer.delete_thread(thread_id)
+        result = MemoryThreadOperationResult(
+            action="clear_memory_thread",
+            thread_id=thread_id,
+            backend=self.settings.runtime.memory.backend,
+            storage_path=self._memory_storage_path(),
+            meta=ExecutionMetadata(operation="memory_admin"),
+        )
+        return self._finalize_result(result, started_at=started_at, operation="memory_admin")
+
+    def copy_memory_thread(
+        self, source_thread_id: str, target_thread_id: str
+    ) -> MemoryThreadOperationResult:
+        started_at = perf_counter()
+        checkpointer = build_memory_checkpointer()
+        if not hasattr(checkpointer, "copy_thread"):
+            result = MemoryThreadOperationResult(
+                action="copy_memory_thread",
+                thread_id=source_thread_id,
+                target_thread_id=target_thread_id,
+                backend=self.settings.runtime.memory.backend,
+                storage_path=self._memory_storage_path(),
+                status="unavailable",
+                fallback_used=True,
+                error_reason="memory_backend_missing_copy_thread",
+                meta=ExecutionMetadata(operation="memory_admin"),
+            )
+            return self._finalize_result(result, started_at=started_at, operation="memory_admin")
+        checkpointer.copy_thread(source_thread_id, target_thread_id)
+        result = MemoryThreadOperationResult(
+            action="copy_memory_thread",
+            thread_id=source_thread_id,
+            target_thread_id=target_thread_id,
+            backend=self.settings.runtime.memory.backend,
+            storage_path=self._memory_storage_path(),
+            meta=ExecutionMetadata(operation="memory_admin"),
+        )
+        return self._finalize_result(result, started_at=started_at, operation="memory_admin")
+
+    def prune_memory_threads(
+        self, thread_ids: list[str], *, strategy: str = "keep_latest"
+    ) -> MemoryThreadOperationResult:
+        started_at = perf_counter()
+        checkpointer = build_memory_checkpointer()
+        if not hasattr(checkpointer, "prune"):
+            result = MemoryThreadOperationResult(
+                action="prune_memory_threads",
+                thread_id=",".join(thread_ids),
+                backend=self.settings.runtime.memory.backend,
+                storage_path=self._memory_storage_path(),
+                status="unavailable",
+                fallback_used=True,
+                error_reason="memory_backend_missing_prune",
+                meta=ExecutionMetadata(operation="memory_admin"),
+            )
+            return self._finalize_result(result, started_at=started_at, operation="memory_admin")
+        checkpointer.prune(thread_ids, strategy=strategy)
+        result = MemoryThreadOperationResult(
+            action="prune_memory_threads",
+            thread_id=",".join(thread_ids),
+            backend=self.settings.runtime.memory.backend,
+            storage_path=self._memory_storage_path(),
+            meta=ExecutionMetadata(
+                operation="memory_admin",
+                model_name=strategy,
+            ),
+        )
+        return self._finalize_result(result, started_at=started_at, operation="memory_admin")
+
+    def clear_memory_thread_display(self, thread_id: str, *, verbose: bool = False) -> str:
+        return render_memory_operation_result(
+            self.clear_memory_thread(thread_id),
+            detail_level="verbose" if verbose else "concise",
+        )
+
+    def copy_memory_thread_display(
+        self,
+        source_thread_id: str,
+        target_thread_id: str,
+        *,
+        verbose: bool = False,
+    ) -> str:
+        return render_memory_operation_result(
+            self.copy_memory_thread(source_thread_id, target_thread_id),
+            detail_level="verbose" if verbose else "concise",
+        )
+
+    def prune_memory_threads_display(
+        self,
+        thread_ids: list[str],
+        *,
+        strategy: str = "keep_latest",
+        verbose: bool = False,
+    ) -> str:
+        return render_memory_operation_result(
+            self.prune_memory_threads(thread_ids, strategy=strategy),
+            detail_level="verbose" if verbose else "concise",
+        )
+
     def load_documents(self, path: str) -> list[Document]:
         return load_documents(path)
 
@@ -604,6 +728,7 @@ class TemplateApp:
                 )
             )
         middleware = self.settings.runtime.middleware
+        memory = self.settings.runtime.memory
         if middleware.profile == "aggressive":
             recommendations.append(
                 "Middleware profile is 'aggressive'; prefer this only when you have a clear "
@@ -614,6 +739,35 @@ class TemplateApp:
                 "Middleware profile is 'safe'; this is a good default for production-facing "
                 "agents that should minimize risky tool behavior and protect common PII."
             )
+        if memory.enabled and memory.backend == "memory":
+            warnings.append(
+                ConfigWarning(
+                    code="memory_not_persistent",
+                    message=(
+                        "runtime.memory.backend is set to 'memory', so conversation history "
+                        "will be lost when the Python process exits."
+                    ),
+                )
+            )
+            recommendations.append(
+                "Use runtime.memory.backend=sqlite if you want memory-agent state to survive "
+                "process restarts."
+            )
+        elif memory.enabled and memory.backend == "sqlite":
+            resolved_memory_path = resolve_runtime_path(memory.sqlite_path)
+            if resolved_memory_path is None:
+                warnings.append(
+                    ConfigWarning(
+                        code="memory_sqlite_path_invalid",
+                        message="runtime.memory.sqlite_path could not be resolved.",
+                        severity="error",
+                    )
+                )
+            else:
+                recommendations.append(
+                    "Memory persistence is enabled with SQLite. Keep the database path on "
+                    "local durable storage if you rely on long-lived thread history."
+                )
         if middleware.enabled and middleware.summarization.enabled:
             if middleware.summarization.keep_messages >= middleware.summarization.trigger_messages:
                 warnings.append(

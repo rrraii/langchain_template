@@ -10,6 +10,7 @@ htmlcov/
 build/
 dist/
 data/index/
+data/state/
 examples/data/index/
 logs/
 examples/logs/

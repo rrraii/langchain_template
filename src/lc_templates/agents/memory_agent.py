@@ -1,6 +1,7 @@
 from langchain.agents import create_agent
-from langgraph.checkpoint.memory import InMemorySaver
 
+from lc_templates.core.checkpoint import build_memory_checkpointer
+from lc_templates.core.config import get_settings
 from lc_templates.core.hooks import emit_event
 from lc_templates.core.logging import get_logger
 from lc_templates.core.middleware import build_agent_middleware
@@ -10,13 +11,13 @@ from lc_templates.core.prompts import build_agent_system_prompt
 from lc_templates.core.schemas import ExecutionMetadata
 from lc_templates.tools.common import COMMON_TOOLS
 
-_MEMORY = InMemorySaver()
 logger = get_logger(__name__)
 
 
 def build_memory_agent():
     model = build_chat_model()
     middleware = build_agent_middleware(has_memory=True)
+    checkpointer = build_memory_checkpointer()
     logger.info("Building memory agent. tool_count=%s", len(COMMON_TOOLS))
     emit_event(
         "memory_agent.build",
@@ -28,13 +29,14 @@ def build_memory_agent():
         model=model,
         tools=COMMON_TOOLS,
         middleware=middleware,
-        checkpointer=_MEMORY,
+        checkpointer=checkpointer,
         system_prompt=build_agent_system_prompt(has_memory=True),
     )
 
 
 def run_memory_agent(thread_id: str, user_input: str):
     agent = build_memory_agent()
+    checkpoint_ns = get_settings().runtime.memory.checkpoint_ns
     logger.info("Running memory agent. thread_id=%s input_length=%s", thread_id, len(user_input))
     emit_event(
         "memory_agent.run",
@@ -44,7 +46,7 @@ def run_memory_agent(thread_id: str, user_input: str):
     )
     return agent.invoke(
         {"messages": [{"role": "user", "content": user_input}]},
-        config={"configurable": {"thread_id": thread_id}},
+        config={"configurable": {"thread_id": thread_id, "checkpoint_ns": checkpoint_ns}},
     )
 
 

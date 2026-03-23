@@ -12,6 +12,9 @@ if __name__ == "__main__":
     first_text = "我叫小王，我在学 LangChain。"
     second_text = "你还记得我叫什么吗？"
 
+    # Reset the demo thread so repeated example runs stay deterministic.
+    app.clear_memory_thread(thread_id)
+
     if output_mode == "json":
         print(
             to_pretty_json(

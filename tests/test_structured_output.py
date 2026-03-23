@@ -26,18 +26,21 @@ class StructuredOutputTests(unittest.TestCase):
         result = _normalize_extraction_payload(
             {
                 "entities": [
-                    {"type": "症状", "value": "头晕"},
-                    {"type": "生命体征", "value": "血压 160/100 mmHg"},
+                    {"type": "symptom", "value": "dizziness"},
+                    {"type": "vital_sign", "value": "blood pressure 160/100 mmHg"},
                 ],
-                "summary": "患者近一周头晕。",
+                "summary": "Symptoms and vital signs extracted.",
             }
         )
 
         self.assertEqual(
             result.entities,
-            ["症状: 头晕", "生命体征: 血压 160/100 mmHg"],
+            [
+                "symptom: dizziness",
+                "vital_sign: blood pressure 160/100 mmHg",
+            ],
         )
-        self.assertEqual(result.summary, "患者近一周头晕。")
+        self.assertEqual(result.summary, "Symptoms and vital signs extracted.")
 
     def test_unavailable_extraction_result_is_non_fatal(self):
         result = _unavailable_extraction_result()

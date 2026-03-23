@@ -7,13 +7,14 @@ from langchain_core.documents import Document
 from rank_bm25 import BM25Okapi
 
 
-# 向量检索模板。
 def create_vector_retriever(vector_store, k: int = 4):
+    """Create a dense retriever from the configured vector store."""
     return vector_store.as_retriever(search_kwargs={"k": k})
 
 
-# 对应你原始 yiliaio.py 中的 BM25 检索模板。
 class ChineseBM25Retriever:
+    """Simple BM25 retriever for Chinese text using jieba tokenization."""
+
     def __init__(
         self,
         documents: list[Document],

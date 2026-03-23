@@ -1,8 +1,8 @@
 runtime:
   active_provider: qwen
   rerank_provider: qwen
-  http_proxy: null
-  https_proxy: null
+  http_proxy: http://127.0.0.1:7890
+  https_proxy: http://127.0.0.1:7890
   default_collection_name: demo_collection
   default_persist_directory: data/index/chroma
   top_k: 4
@@ -19,6 +19,11 @@ runtime:
   max_citations: 3
   routing_confidence_threshold: 0.55
   rag_no_answer_message: "I cannot answer confidently from the provided context."
+  memory:
+    enabled: true
+    backend: sqlite
+    sqlite_path: data/state/memory.sqlite
+    checkpoint_ns: ""
   middleware:
     profile: balanced
     enabled: true
@@ -38,6 +43,11 @@ runtime:
       enabled: true
       trigger_messages: 24
       keep_messages: 12
+    context_guard:
+      enabled: true
+      similarity_threshold: 0.18
+      recent_messages: 4
+      preserve_profile_facts: true
     dynamic_model_selection_enabled: false
     dynamic_model_selection_message_threshold: 800
 providers:

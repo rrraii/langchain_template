@@ -226,6 +226,47 @@ Both forms will try to read `DASHSCOPE_API_KEY` from the current process environ
 - Meaning: fallback text returned when retrieved context is insufficient
 - Note: this is used as a hard fallback in RAG post-processing and also injected into prompts
 
+### `memory`
+
+- Type: object
+- Default: enabled with SQLite persistence
+- Enforcement: hard enforcement for memory-enabled agent construction
+- Meaning: controls how conversation checkpoints are stored for `memory_agent` flows
+
+#### `memory.enabled`
+
+- Type: `bool`
+- Default: `true`
+- Meaning: declares whether memory should be considered part of the runtime profile
+- Note: the current implementation always builds a checkpointer for memory agents; this flag is mainly surfaced in health checks and future-proofed configuration
+
+#### `memory.backend`
+
+- Type: `"sqlite" | "memory"`
+- Default: `"sqlite"`
+- Enforcement: hard enforcement
+- Meaning: checkpoint backend used by memory-enabled agents
+- Behavior:
+  - `sqlite`: persists checkpoints across process restarts
+  - `memory`: keeps checkpoints only in-process
+- Recommendation: use `sqlite` for real development work and demos you want to resume later
+
+#### `memory.sqlite_path`
+
+- Type: `str`
+- Default: `"data/state/memory.sqlite"`
+- Enforcement: hard enforcement when `memory.backend = "sqlite"`
+- Meaning: SQLite file path for persisted conversation checkpoints
+- Path rule: relative paths are resolved from the project root, not from the current working directory
+
+#### `memory.checkpoint_ns`
+
+- Type: `str`
+- Default: `""`
+- Enforcement: hard enforcement
+- Meaning: checkpoint namespace passed to LangGraph for memory agent runs
+- Use case: lets you separate multiple memory domains while reusing the same SQLite file
+
 ### `middleware`
 
 - Type: object
@@ -350,6 +391,38 @@ Both forms will try to read `DASHSCOPE_API_KEY` from the current process environ
 - Allowed range: `2` to `100`
 - Meaning: recent messages retained alongside the generated summary
 - Validation: must be smaller than `trigger_messages`
+
+#### `middleware.context_guard`
+
+- Type: object
+- Meaning: config for the current-turn priority guard used by memory-enabled agents
+- Goal: reduce stale-history interference when the user clearly changes topic
+
+#### `middleware.context_guard.enabled`
+
+- Type: `bool`
+- Default: `true`
+- Meaning: enables the memory context guard middleware
+
+#### `middleware.context_guard.similarity_threshold`
+
+- Type: `float`
+- Default: `0.18`
+- Allowed range: `0.0` to `1.0`
+- Meaning: lexical similarity threshold below which a new user turn is treated as a topic shift
+
+#### `middleware.context_guard.recent_messages`
+
+- Type: `int`
+- Default: `4`
+- Allowed range: `1` to `20`
+- Meaning: number of most recent messages retained when the guard trims stale context
+
+#### `middleware.context_guard.preserve_profile_facts`
+
+- Type: `bool`
+- Default: `true`
+- Meaning: when trimming context, preserve older user messages that look like stable profile facts such as name or long-term preference
 
 ## Provider section
 
@@ -506,6 +579,11 @@ runtime:
   max_citations: 3
   routing_confidence_threshold: 0.55
   rag_no_answer_message: "I cannot answer confidently from the provided context."
+  memory:
+    enabled: true
+    backend: sqlite
+    sqlite_path: data/state/memory.sqlite
+    checkpoint_ns: ""
   middleware:
     profile: balanced
     enabled: true
@@ -527,6 +605,11 @@ runtime:
       enabled: true
       trigger_messages: 24
       keep_messages: 12
+    context_guard:
+      enabled: true
+      similarity_threshold: 0.18
+      recent_messages: 4
+      preserve_profile_facts: true
 
 providers:
   ollama:

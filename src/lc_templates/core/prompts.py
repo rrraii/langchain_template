@@ -40,7 +40,23 @@ def build_agent_system_prompt(*, has_memory: bool = False, structured: bool = Fa
     ]
     if has_memory:
         instructions.append(
-            "Use the conversation history in the same thread_id when it is relevant."
+            "Use conversation history from the same thread only when it is directly relevant."
+        )
+        instructions.append(
+            "Prioritize the current user turn over older context when they differ in topic, "
+            "intent, or constraints."
+        )
+        instructions.append(
+            "Treat older conversation as optional supporting context, not as a requirement to "
+            "continue the previous task."
+        )
+        instructions.append(
+            "If the user clearly changes topic, answer the new topic first and avoid dragging "
+            "irrelevant prior details into the response."
+        )
+        instructions.append(
+            "Preserve only stable user facts from history, such as name or long-term preference, "
+            "when they help the current answer."
         )
     if structured:
         instructions.append("Return data that fully satisfies the required response schema.")

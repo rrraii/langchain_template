@@ -14,6 +14,14 @@ AnswerStyle = Literal["concise", "balanced", "detailed"]
 OutputMode = Literal["concise", "verbose", "json"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
 MiddlewareProfile = Literal["safe", "balanced", "aggressive", "custom"]
+MemoryBackend = Literal["sqlite", "memory"]
+
+
+class MemorySettings(BaseModel):
+    enabled: bool = Field(default=True)
+    backend: MemoryBackend = Field(default="sqlite")
+    sqlite_path: str = Field(default="data/state/memory.sqlite")
+    checkpoint_ns: str = Field(default="")
 
 
 class RuntimeSettings(BaseModel):
@@ -39,6 +47,7 @@ class RuntimeSettings(BaseModel):
     rag_no_answer_message: str = Field(
         default="I cannot answer confidently from the provided context."
     )
+    memory: MemorySettings = Field(default_factory=MemorySettings)
     middleware: MiddlewareSettings = Field(default_factory=lambda: MiddlewareSettings())
 
 
@@ -63,6 +72,13 @@ class SummarizationMiddlewareSettings(BaseModel):
         return self
 
 
+class ContextGuardSettings(BaseModel):
+    enabled: bool = Field(default=True)
+    similarity_threshold: float = Field(default=0.18, ge=0.0, le=1.0)
+    recent_messages: int = Field(default=4, ge=1, le=20)
+    preserve_profile_facts: bool = Field(default=True)
+
+
 class MiddlewareSettings(BaseModel):
     profile: MiddlewareProfile = Field(default="balanced")
     enabled: bool = Field(default=True)
@@ -75,6 +91,7 @@ class MiddlewareSettings(BaseModel):
     summarization: SummarizationMiddlewareSettings = Field(
         default_factory=SummarizationMiddlewareSettings
     )
+    context_guard: ContextGuardSettings = Field(default_factory=ContextGuardSettings)
 
     @model_validator(mode="before")
     @classmethod
@@ -104,6 +121,12 @@ class MiddlewareSettings(BaseModel):
                     "trigger_messages": 20,
                     "keep_messages": 10,
                 },
+                "context_guard": {
+                    "enabled": True,
+                    "similarity_threshold": 0.2,
+                    "recent_messages": 4,
+                    "preserve_profile_facts": True,
+                },
             },
             "balanced": {
                 "enabled": True,
@@ -124,6 +147,12 @@ class MiddlewareSettings(BaseModel):
                     "enabled": True,
                     "trigger_messages": 24,
                     "keep_messages": 12,
+                },
+                "context_guard": {
+                    "enabled": True,
+                    "similarity_threshold": 0.18,
+                    "recent_messages": 4,
+                    "preserve_profile_facts": True,
                 },
             },
             "aggressive": {
@@ -146,6 +175,12 @@ class MiddlewareSettings(BaseModel):
                     "trigger_messages": 30,
                     "keep_messages": 12,
                 },
+                "context_guard": {
+                    "enabled": True,
+                    "similarity_threshold": 0.12,
+                    "recent_messages": 3,
+                    "preserve_profile_facts": True,
+                },
             },
         }
         if profile == "custom":
@@ -159,6 +194,10 @@ class MiddlewareSettings(BaseModel):
         merged["summarization"] = {
             **preset["summarization"],
             **data.get("summarization", {}),
+        }
+        merged["context_guard"] = {
+            **preset["context_guard"],
+            **data.get("context_guard", {}),
         }
         return merged
 

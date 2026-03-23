@@ -1,4 +1,3 @@
-
 import unittest
 
 from lc_templates.core.output import (
@@ -72,8 +71,11 @@ class OutputTests(unittest.TestCase):
         self.assertIn("Tool call count: 1", render_agent_execution_result(result, "verbose"))
 
     def test_render_extraction_result_supports_concise_and_verbose(self):
-        result = ExtractionResult(entities=["发热", "咳嗽"], summary="疑似上呼吸道感染")
-        self.assertIn("Entities: 发热, 咳嗽", render_extraction_result(result))
+        result = ExtractionResult(
+            entities=["headache", "fatigue"],
+            summary="Symptoms extracted.",
+        )
+        self.assertIn("Entities: headache, fatigue", render_extraction_result(result))
         self.assertIn("Entities:", render_extraction_result(result, "verbose"))
 
     def test_render_extraction_result_handles_empty_payload(self):
@@ -90,11 +92,11 @@ class OutputTests(unittest.TestCase):
 
     def test_render_task_result_supports_concise_and_verbose(self):
         result = {
-            "summary": "这是摘要",
+            "summary": "patient summary",
             "classification": {"label": "medical"},
-            "extraction": {"summary": "这是抽取摘要"},
+            "extraction": {"summary": "medical extraction summary"},
         }
         concise = render_task_result(result)
         verbose = render_task_result(result, "verbose")
         self.assertIn("Route hint: medical", concise)
-        self.assertIn('"summary": "这是摘要"', verbose)
+        self.assertIn('"summary": "patient summary"', verbose)

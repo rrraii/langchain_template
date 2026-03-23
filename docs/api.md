@@ -35,6 +35,12 @@ Recommended public API:
 - `TemplateApp.memory_agent`
 - `TemplateApp.memory_agent_text`
 - `TemplateApp.memory_agent_display`
+- `TemplateApp.clear_memory_thread`
+- `TemplateApp.clear_memory_thread_display`
+- `TemplateApp.copy_memory_thread`
+- `TemplateApp.copy_memory_thread_display`
+- `TemplateApp.prune_memory_threads`
+- `TemplateApp.prune_memory_threads_display`
 - `TemplateApp.run_text_tasks_display`
 - `TemplateApp.run_text_tasks_json`
 - `TemplateApp.index_file`
@@ -61,6 +67,7 @@ Recommended public API:
 - `AgentExecutionResult`
 - `GroundedAnswer`
 - `KnowledgeBaseBuildResult`
+- `MemoryThreadOperationResult`
 
 ## Event hooks
 

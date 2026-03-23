@@ -19,4 +19,4 @@ def load_documents(path: str) -> list[Document]:
     if suffix in {".docx", ".doc"}:
         return UnstructuredWordDocumentLoader(str(file_path)).load()
 
-    raise ValueError(f"暂不支持的文件类型: {suffix}")
+    raise ValueError(f"Unsupported document type: {suffix}")

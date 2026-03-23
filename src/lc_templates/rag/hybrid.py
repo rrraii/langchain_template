@@ -11,7 +11,6 @@ def _doc_key(doc: Document) -> str:
     return f"{source}::{page}::{doc.page_content[:80]}"
 
 
-# 推荐在工作中优先使用 RRF 融合，而不是手写分值归一化权重。
 def merge_with_rrf(
     query: str,
     dense_search: Callable[[str, int], list[Document]],
@@ -19,6 +18,7 @@ def merge_with_rrf(
     k: int = 4,
     rrf_k: int = 60,
 ) -> list[Document]:
+    """Merge dense and sparse retrieval results with reciprocal rank fusion."""
     dense_docs = dense_search(query, k)
     sparse_docs = sparse_search(query, k)
 

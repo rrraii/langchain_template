@@ -15,6 +15,7 @@ from lc_templates.core.schemas import (
     GroundedAnswer,
     HealthReport,
     KnowledgeBaseBuildResult,
+    MemoryThreadOperationResult,
     RouteDecision,
     TaskBundleResult,
     ToolCallRecord,
@@ -371,6 +372,34 @@ def render_knowledge_base_result(
         f"Indexed {result.document_count} document(s) into {result.collection_name} "
         f"with {result.chunk_count} chunk(s)."
     )
+
+
+def render_memory_operation_result(
+    result: MemoryThreadOperationResult, detail_level: DetailLevel = "concise"
+) -> str:
+    if detail_level == "verbose":
+        lines = [
+            f"Action: {result.action}",
+            f"Thread id: {result.thread_id or '(none)'}",
+            f"Target thread id: {result.target_thread_id or '(none)'}",
+            f"Backend: {result.backend}",
+            f"Storage path: {result.storage_path or '(none)'}",
+            f"Status: {result.status}",
+            f"Fallback used: {result.fallback_used}",
+        ]
+        if result.trace_id:
+            lines.append(f"Trace id: {result.trace_id}")
+        lines.append(f"Latency (ms): {result.latency_ms:.3f}")
+        if result.error_reason:
+            lines.append(f"Error reason: {result.error_reason}")
+        return "\n".join(lines)
+
+    action = result.action or "memory_operation"
+    if result.target_thread_id:
+        return f"{action} completed for {result.thread_id} -> {result.target_thread_id}."
+    if result.thread_id:
+        return f"{action} completed for {result.thread_id}."
+    return f"{action} completed."
 
 
 def strip_json_fences(text: str) -> str:

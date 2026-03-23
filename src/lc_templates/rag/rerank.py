@@ -7,7 +7,7 @@ from lc_templates.core.models import build_openai_compatible_client
 
 
 class OpenAICompatibleReranker:
-    """适合 Qwen / DashScope / DeepSeek / 其他 OpenAI Compatible rerank 接口。"""
+    """Thin wrapper for OpenAI-compatible rerank endpoints."""
 
     def __init__(self, model: str | None = None, provider_name: str | None = None) -> None:
         settings = get_settings()

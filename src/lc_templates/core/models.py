@@ -7,8 +7,8 @@ from openai import OpenAI
 from lc_templates.core.config import ProviderSettings, get_settings
 
 
-# 稳定版模型工厂：支持 openai / qwen / deepseek / ollama，并通过 active_provider 切换。
 def _resolve_provider(provider_name: str | None = None) -> tuple[str, ProviderSettings]:
+    """Resolve the configured provider for real model calls."""
     settings = get_settings()
     name = provider_name or settings.get_active_provider_name()
     return name, settings.get_provider(name)
@@ -70,7 +70,7 @@ def build_embeddings(model: str | None = None, provider_name: str | None = None)
     provider_key, provider = _resolve_provider(provider_name)
     model_name = model or provider.embedding_model
     if not model_name:
-        raise ValueError("当前 provider 未配置 embedding_model")
+        raise ValueError("Provider must define embedding_model for embedding workflows.")
 
     if provider.type == "ollama":
         return OllamaEmbeddings(model=model_name, base_url=provider.base_url)
@@ -94,10 +94,10 @@ def build_embeddings(model: str | None = None, provider_name: str | None = None)
     )
 
 
-# 仅用于 openai-compatible 接口，例如 rerank、embeddings 原生接口等。
 def build_openai_compatible_client(
     provider_name: str | None = None, for_rerank: bool = False
 ) -> OpenAI:
+    """Build a low-level OpenAI-compatible client for rerank and provider-specific APIs."""
     settings = get_settings()
     target_name = provider_name or (
         settings.get_rerank_provider_name() if for_rerank else settings.get_active_provider_name()
@@ -105,7 +105,9 @@ def build_openai_compatible_client(
     provider = settings.get_provider(target_name)
 
     if provider.type != "openai_compatible":
-        raise ValueError(f"provider {target_name} 不是 openai_compatible，无法创建 OpenAI client")
+        raise ValueError(
+            f"Provider '{target_name}' must be openai_compatible to build an OpenAI client."
+        )
 
     return OpenAI(
         api_key=provider.api_key,

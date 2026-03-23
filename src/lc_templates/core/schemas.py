@@ -116,6 +116,14 @@ class KnowledgeBaseBuildResult(ResultEnvelope):
     chunk_count: int = Field(default=0, description="Number of generated chunks")
 
 
+class MemoryThreadOperationResult(ResultEnvelope):
+    action: str = Field(default="", description="Memory operation name")
+    thread_id: str = Field(default="", description="Primary thread id")
+    target_thread_id: str = Field(default="", description="Optional target thread id")
+    backend: str = Field(default="", description="Configured memory backend")
+    storage_path: str = Field(default="", description="Resolved storage path when applicable")
+
+
 class ProviderStatus(BaseModel):
     name: str = Field(description="Provider name")
     enabled: bool = Field(description="Whether the provider is enabled")

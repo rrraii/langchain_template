@@ -44,6 +44,11 @@ class ConfigTests(unittest.TestCase):
                       max_citations: 3
                       routing_confidence_threshold: 0.55
                       rag_no_answer_message: "N/A"
+                      memory:
+                        enabled: true
+                        backend: sqlite
+                        sqlite_path: data/state/test-memory.sqlite
+                        checkpoint_ns: demo
 
                     providers:
                       ollama:
@@ -71,6 +76,12 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(app.settings.runtime.log_level, "DEBUG")
             self.assertEqual(app.settings.runtime.third_party_log_level, "ERROR")
             self.assertEqual(app.settings.runtime.log_file, "logs/test.log")
+            self.assertEqual(app.settings.runtime.memory.backend, "sqlite")
+            self.assertEqual(
+                app.settings.runtime.memory.sqlite_path,
+                "data/state/test-memory.sqlite",
+            )
+            self.assertEqual(app.settings.runtime.memory.checkpoint_ns, "demo")
             self.assertEqual(app.settings.runtime.http_proxy, "http://127.0.0.1:7890")
             self.assertEqual(app.settings.runtime.https_proxy, "http://127.0.0.1:7890")
             self.assertEqual(app.settings.providers.ollama.embedding_dimensions, 1024)
