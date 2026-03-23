@@ -4,6 +4,7 @@ import argparse
 import sys
 
 from lc_templates import __version__, create_app
+from lc_templates.core.config import scaffold_config
 from lc_templates.core.output import to_pretty_json
 
 
@@ -26,6 +27,10 @@ def _build_parser() -> argparse.ArgumentParser:
     summarize.add_argument("text")
     summarize.add_argument("--output", choices=["concise", "verbose", "json"], default=None)
 
+    extract = subparsers.add_parser("extract", help="Extract entities from text.")
+    extract.add_argument("text")
+    extract.add_argument("--output", choices=["concise", "verbose", "json"], default=None)
+
     classify = subparsers.add_parser("classify", help="Classify text into given labels.")
     classify.add_argument("text")
     classify.add_argument("--labels", nargs="+", required=True)
@@ -35,9 +40,33 @@ def _build_parser() -> argparse.ArgumentParser:
     route.add_argument("text")
     route.add_argument("--output", choices=["concise", "verbose", "json"], default=None)
 
-    subparsers.add_parser("doctor", help="Inspect configuration and provider readiness.")
+    tasks = subparsers.add_parser("tasks", help="Run the bundled text tasks.")
+    tasks.add_argument("text")
+    tasks.add_argument("--output", choices=["concise", "verbose", "json"], default=None)
+
+    run_cmd = subparsers.add_parser(
+        "run",
+        help="Route text and execute the matched local workflow.",
+    )
+    run_cmd.add_argument("text")
+    run_cmd.add_argument("--use-rag", action="store_true")
+    run_cmd.add_argument("--persist-directory", default=None)
+    run_cmd.add_argument("--collection-name", default=None)
+    run_cmd.add_argument("--k", type=int, default=None)
+    run_cmd.add_argument("--output", choices=["concise", "verbose", "json"], default=None)
+
+    doctor = subparsers.add_parser("doctor", help="Inspect configuration and provider readiness.")
+    doctor.add_argument("--output", choices=["concise", "verbose", "json"], default=None)
     subparsers.add_parser("version", help="Print the installed package version.")
-    subparsers.add_parser("config", help="Print the effective runtime configuration.")
+    config = subparsers.add_parser("config", help="Print the effective runtime configuration.")
+    config.add_argument("--output", choices=["concise", "verbose", "json"], default=None)
+    init_config = subparsers.add_parser(
+        "init-config",
+        help="Write config/config.yaml from config/config.example.yaml.",
+    )
+    init_config.add_argument("--path", default=None)
+    init_config.add_argument("--force", action="store_true")
+    init_config.add_argument("--output", choices=["concise", "verbose", "json"], default=None)
 
     agent = subparsers.add_parser("agent", help="Run the default tool-using agent.")
     agent.add_argument("text")
@@ -79,6 +108,19 @@ def _resolve_output_mode(app, args: argparse.Namespace) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "version":
+        print(__version__)
+        return 0
+    if args.command == "init-config":
+        output_mode = getattr(args, "output", None) or "concise"
+        path = str(scaffold_config(args.path, overwrite=args.force))
+        if output_mode == "json":
+            print(to_pretty_json({"path": path, "overwritten": args.force}))
+        else:
+            print(f"Wrote config template to {path}")
+        return 0
+
     app = create_app(config_path=args.config)
 
     if args.command == "chat":
@@ -90,6 +132,13 @@ def main(argv: list[str] | None = None) -> int:
         text = app.summarize(args.text)
         output_mode = _resolve_output_mode(app, args)
         print(to_pretty_json({"text": text}) if output_mode == "json" else text)
+        return 0
+    if args.command == "extract":
+        output_mode = _resolve_output_mode(app, args)
+        if output_mode == "json":
+            print(to_pretty_json(app.extract(args.text)))
+        else:
+            print(app.extract_display(args.text, verbose=output_mode == "verbose"))
         return 0
     if args.command == "classify":
         output_mode = _resolve_output_mode(app, args)
@@ -107,22 +156,66 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "route":
         output_mode = _resolve_output_mode(app, args)
         if output_mode == "json":
-            print(
-                to_pretty_json(
-                    {"route": app.route(args.text), "name": app.route_name(args.text)}
-                )
-            )
+            print(to_pretty_json(app.route_decision(args.text)))
         else:
             print(app.route_display(args.text, verbose=output_mode == "verbose"))
         return 0
-    if args.command == "doctor":
-        print(to_pretty_json(app.doctor()))
+    if args.command == "tasks":
+        output_mode = _resolve_output_mode(app, args)
+        if output_mode == "json":
+            print(to_pretty_json(app.run_text_tasks(args.text)))
+        else:
+            print(app.run_text_tasks_display(args.text, verbose=output_mode == "verbose"))
         return 0
-    if args.command == "version":
-        print(__version__)
+    if args.command == "run":
+        output_mode = _resolve_output_mode(app, args)
+        if output_mode == "json":
+            print(
+                to_pretty_json(
+                    app.run(
+                        args.text,
+                        use_rag=args.use_rag,
+                        persist_directory=args.persist_directory,
+                        collection_name=args.collection_name,
+                        k=args.k,
+                    )
+                )
+            )
+        else:
+            print(
+                app.run_display(
+                    args.text,
+                    verbose=output_mode == "verbose",
+                    use_rag=args.use_rag,
+                    persist_directory=args.persist_directory,
+                    collection_name=args.collection_name,
+                    k=args.k,
+                )
+            )
+        return 0
+    if args.command == "doctor":
+        output_mode = _resolve_output_mode(app, args)
+        if output_mode == "json":
+            print(to_pretty_json(app.doctor()))
+        else:
+            print(app.doctor_display(verbose=output_mode == "verbose"))
         return 0
     if args.command == "config":
-        print(to_pretty_json(app.config()))
+        output_mode = _resolve_output_mode(app, args)
+        if output_mode == "json":
+            print(to_pretty_json(app.config()))
+        elif output_mode == "verbose":
+            print(to_pretty_json(app.config()))
+        else:
+            runtime = app.config().get("runtime", {})
+            print(
+                "\n".join(
+                    [
+                        f"active_provider: {runtime.get('active_provider', '')}",
+                        f"default_output_mode: {runtime.get('default_output_mode', '')}",
+                    ]
+                )
+            )
         return 0
     if args.command == "agent":
         output_mode = _resolve_output_mode(app, args)
@@ -168,32 +261,29 @@ def main(argv: list[str] | None = None) -> int:
             )
         return 0
     if args.command == "index":
-        result = app.index_file(
-            args.path,
-            persist_directory=args.persist_directory,
-            collection_name=args.collection_name,
-            chunk_size=args.chunk_size,
-            chunk_overlap=args.chunk_overlap,
-        )
         output_mode = _resolve_output_mode(app, args)
         if output_mode == "json":
-            print(to_pretty_json(result))
-        elif output_mode == "verbose":
             print(
-                "\n".join(
-                    [
-                        f"Source: {result.source_path}",
-                        f"Persist directory: {result.persist_directory}",
-                        f"Collection: {result.collection_name}",
-                        f"Documents: {result.document_count}",
-                        f"Chunks: {result.chunk_count}",
-                    ]
+                to_pretty_json(
+                    app.index_file(
+                        args.path,
+                        persist_directory=args.persist_directory,
+                        collection_name=args.collection_name,
+                        chunk_size=args.chunk_size,
+                        chunk_overlap=args.chunk_overlap,
+                    )
                 )
             )
         else:
             print(
-                f"Indexed {result.document_count} document(s) into "
-                f"{result.collection_name} with {result.chunk_count} chunk(s)."
+                app.index_display(
+                    args.path,
+                    persist_directory=args.persist_directory,
+                    collection_name=args.collection_name,
+                    chunk_size=args.chunk_size,
+                    chunk_overlap=args.chunk_overlap,
+                    verbose=output_mode == "verbose",
+                )
             )
         return 0
 

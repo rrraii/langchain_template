@@ -4,8 +4,10 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 
 from lc_templates.core.config import AppSettings, get_settings, resolve_runtime_path
+from lc_templates.core.hooks import emit_event
 from lc_templates.core.logging import get_logger
 from lc_templates.core.models import build_embeddings
+from lc_templates.core.schemas import ExecutionMetadata
 
 logger = get_logger(__name__)
 
@@ -64,6 +66,18 @@ def build_vector_store(
         resolved_collection_name,
         provider_name or settings.get_active_provider_name(),
     )
+    emit_event(
+        "indexing.build_vector_store",
+        message="Building vector store.",
+        meta=ExecutionMetadata(
+            provider_name=provider_name or settings.get_active_provider_name(),
+            operation="indexing",
+        ),
+        payload={
+            "persist_directory": str(target_directory),
+            "collection_name": resolved_collection_name,
+        },
+    )
     return Chroma.from_documents(
         documents=documents,
         embedding=embeddings,
@@ -94,6 +108,18 @@ def load_vector_store(
         str(target_directory),
         resolved_collection_name,
         provider_name or settings.get_active_provider_name(),
+    )
+    emit_event(
+        "indexing.load_vector_store",
+        message="Loading vector store.",
+        meta=ExecutionMetadata(
+            provider_name=provider_name or settings.get_active_provider_name(),
+            operation="indexing",
+        ),
+        payload={
+            "persist_directory": str(target_directory),
+            "collection_name": resolved_collection_name,
+        },
     )
     return Chroma(
         persist_directory=str(target_directory),

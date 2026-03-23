@@ -13,6 +13,7 @@ ResponseFormat = Literal["text", "markdown"]
 AnswerStyle = Literal["concise", "balanced", "detailed"]
 OutputMode = Literal["concise", "verbose", "json"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
+MiddlewareProfile = Literal["safe", "balanced", "aggressive", "custom"]
 
 
 class RuntimeSettings(BaseModel):
@@ -38,6 +39,128 @@ class RuntimeSettings(BaseModel):
     rag_no_answer_message: str = Field(
         default="I cannot answer confidently from the provided context."
     )
+    middleware: MiddlewareSettings = Field(default_factory=lambda: MiddlewareSettings())
+
+
+class PIIMiddlewareSettings(BaseModel):
+    enabled: bool = Field(default=False)
+    pii_types: list[str] = Field(default_factory=lambda: ["email", "url"])
+    strategy: Literal["block", "redact", "mask", "hash"] = Field(default="redact")
+    apply_to_input: bool = Field(default=True)
+    apply_to_output: bool = Field(default=False)
+    apply_to_tool_results: bool = Field(default=False)
+
+
+class SummarizationMiddlewareSettings(BaseModel):
+    enabled: bool = Field(default=True)
+    trigger_messages: int = Field(default=24, ge=4, le=200)
+    keep_messages: int = Field(default=12, ge=2, le=100)
+
+    @model_validator(mode="after")
+    def validate_window(self) -> SummarizationMiddlewareSettings:
+        if self.keep_messages >= self.trigger_messages:
+            raise ValueError("keep_messages must be smaller than trigger_messages")
+        return self
+
+
+class MiddlewareSettings(BaseModel):
+    profile: MiddlewareProfile = Field(default="balanced")
+    enabled: bool = Field(default=True)
+    tool_call_limit_enabled: bool = Field(default=True)
+    tool_call_limit: int = Field(default=6, ge=1, le=100)
+    model_fallback_enabled: bool = Field(default=False)
+    dynamic_model_selection_enabled: bool = Field(default=False)
+    dynamic_model_selection_message_threshold: int = Field(default=800, ge=50, le=20000)
+    pii: PIIMiddlewareSettings = Field(default_factory=PIIMiddlewareSettings)
+    summarization: SummarizationMiddlewareSettings = Field(
+        default_factory=SummarizationMiddlewareSettings
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def apply_profile_defaults(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        profile = data.get("profile", "balanced")
+        presets = {
+            "safe": {
+                "enabled": True,
+                "tool_call_limit_enabled": True,
+                "tool_call_limit": 4,
+                "model_fallback_enabled": False,
+                "dynamic_model_selection_enabled": False,
+                "dynamic_model_selection_message_threshold": 1000,
+                "pii": {
+                    "enabled": True,
+                    "pii_types": ["email", "url"],
+                    "strategy": "redact",
+                    "apply_to_input": True,
+                    "apply_to_output": False,
+                    "apply_to_tool_results": False,
+                },
+                "summarization": {
+                    "enabled": True,
+                    "trigger_messages": 20,
+                    "keep_messages": 10,
+                },
+            },
+            "balanced": {
+                "enabled": True,
+                "tool_call_limit_enabled": True,
+                "tool_call_limit": 6,
+                "model_fallback_enabled": False,
+                "dynamic_model_selection_enabled": False,
+                "dynamic_model_selection_message_threshold": 800,
+                "pii": {
+                    "enabled": False,
+                    "pii_types": ["email", "url"],
+                    "strategy": "redact",
+                    "apply_to_input": True,
+                    "apply_to_output": False,
+                    "apply_to_tool_results": False,
+                },
+                "summarization": {
+                    "enabled": True,
+                    "trigger_messages": 24,
+                    "keep_messages": 12,
+                },
+            },
+            "aggressive": {
+                "enabled": True,
+                "tool_call_limit_enabled": True,
+                "tool_call_limit": 10,
+                "model_fallback_enabled": True,
+                "dynamic_model_selection_enabled": True,
+                "dynamic_model_selection_message_threshold": 500,
+                "pii": {
+                    "enabled": False,
+                    "pii_types": ["email", "url"],
+                    "strategy": "redact",
+                    "apply_to_input": True,
+                    "apply_to_output": False,
+                    "apply_to_tool_results": False,
+                },
+                "summarization": {
+                    "enabled": True,
+                    "trigger_messages": 30,
+                    "keep_messages": 12,
+                },
+            },
+        }
+        if profile == "custom":
+            return data
+        preset = presets.get(profile)
+        if not preset:
+            return data
+
+        merged = {**preset, **data}
+        merged["pii"] = {**preset["pii"], **data.get("pii", {})}
+        merged["summarization"] = {
+            **preset["summarization"],
+            **data.get("summarization", {}),
+        }
+        return merged
 
 
 class ProviderSettings(BaseModel):
@@ -159,6 +282,10 @@ def _default_config_path() -> Path:
     return _project_root() / "config" / "config.yaml"
 
 
+def _example_config_path() -> Path:
+    return _project_root() / "config" / "config.example.yaml"
+
+
 def get_resolved_config_path(config_path: str | None = None) -> Path:
     return Path(config_path) if config_path else _default_config_path()
 
@@ -170,6 +297,20 @@ def resolve_runtime_path(path_value: str | None) -> Path | None:
     if path.is_absolute():
         return path
     return _project_root() / path
+
+
+def scaffold_config(destination: str | None = None, *, overwrite: bool = False) -> Path:
+    target_path = Path(destination) if destination else _default_config_path()
+    source_path = _example_config_path()
+    if not source_path.exists():
+        raise FileNotFoundError(f"Example config file not found: {source_path}")
+    if target_path.exists() and not overwrite:
+        raise FileExistsError(
+            f"Config file already exists: {target_path}. Use overwrite=True to replace it."
+        )
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    target_path.write_text(source_path.read_text(encoding="utf-8"), encoding="utf-8")
+    return target_path
 
 
 def _resolve_env_value(value: Any) -> Any:

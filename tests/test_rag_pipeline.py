@@ -77,6 +77,8 @@ class RagPipelineTests(unittest.TestCase):
 
         self.assertFalse(result.grounded)
         self.assertEqual(result.citations, [])
+        self.assertEqual(result.citation_items, [])
+        self.assertEqual(result.status, "partial")
         self.assertEqual(result.answer, get_settings().runtime.rag_no_answer_message)
 
     def test_answer_with_structured_rag_handles_empty_context(self):
@@ -90,4 +92,6 @@ class RagPipelineTests(unittest.TestCase):
 
         self.assertFalse(result.grounded)
         self.assertEqual(result.citations, [])
+        self.assertEqual(result.citation_items, [])
+        self.assertEqual(result.status, "unavailable")
         self.assertEqual(result.answer, get_settings().runtime.rag_no_answer_message)

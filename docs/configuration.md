@@ -226,6 +226,131 @@ Both forms will try to read `DASHSCOPE_API_KEY` from the current process environ
 - Meaning: fallback text returned when retrieved context is insufficient
 - Note: this is used as a hard fallback in RAG post-processing and also injected into prompts
 
+### `middleware`
+
+- Type: object
+- Default: enabled with conservative defaults
+- Enforcement: hard enforcement for agent construction
+- Meaning: controls LangChain 1.2 agent middleware attached to `create_agent(...)`
+- Current middleware support:
+  - tool call limiting
+  - optional dynamic model selection
+  - optional model fallback
+  - optional PII protection
+  - optional memory summarization for memory-enabled agents
+
+#### `middleware.profile`
+
+- Type: `"safe" | "balanced" | "aggressive" | "custom"`
+- Default: `"balanced"`
+- Meaning: preset that seeds middleware defaults before individual overrides are applied
+- Presets:
+  - `safe`: lower tool-call budget, PII protection on, conservative switching
+  - `balanced`: practical default for most local and remote agent runs
+  - `aggressive`: higher tool-call budget plus fallback and dynamic model selection
+  - `custom`: do not apply preset defaults beyond the explicit field values you provide
+
+#### `middleware.enabled`
+
+- Type: `bool`
+- Default: `true`
+- Meaning: global switch for agent middleware assembly
+
+#### `middleware.tool_call_limit_enabled`
+
+- Type: `bool`
+- Default: `true`
+- Meaning: enables `ToolCallLimitMiddleware`
+
+#### `middleware.tool_call_limit`
+
+- Type: `int`
+- Default: `6`
+- Allowed range: `1` to `100`
+- Meaning: per-run tool call ceiling for agents
+
+#### `middleware.model_fallback_enabled`
+
+- Type: `bool`
+- Default: `false`
+- Meaning: enables `ModelFallbackMiddleware`
+- Note: only effective when `reasoning_model` is different from `chat_model`
+
+#### `middleware.dynamic_model_selection_enabled`
+
+- Type: `bool`
+- Default: `false`
+- Meaning: enables a custom `wrap_model_call` middleware that switches long inputs to `reasoning_model`
+- Note: this is one of the LangChain 1.2-style middleware patterns now built into the template
+
+#### `middleware.dynamic_model_selection_message_threshold`
+
+- Type: `int`
+- Default: `800`
+- Allowed range: `50` to `20000`
+- Meaning: approximate character threshold above which the middleware switches to `reasoning_model`
+
+#### `middleware.pii`
+
+- Type: object
+- Meaning: config for `PIIMiddleware`
+
+#### `middleware.pii.enabled`
+
+- Type: `bool`
+- Default: `false`
+
+#### `middleware.pii.pii_types`
+
+- Type: `list[str]`
+- Default: `["email", "url"]`
+- Meaning: PII types passed to `PIIMiddleware`
+
+#### `middleware.pii.strategy`
+
+- Type: `"block" | "redact" | "mask" | "hash"`
+- Default: `"redact"`
+
+#### `middleware.pii.apply_to_input`
+
+- Type: `bool`
+- Default: `true`
+
+#### `middleware.pii.apply_to_output`
+
+- Type: `bool`
+- Default: `false`
+
+#### `middleware.pii.apply_to_tool_results`
+
+- Type: `bool`
+- Default: `false`
+
+#### `middleware.summarization`
+
+- Type: object
+- Meaning: config for `SummarizationMiddleware` on memory-enabled agents
+
+#### `middleware.summarization.enabled`
+
+- Type: `bool`
+- Default: `true`
+
+#### `middleware.summarization.trigger_messages`
+
+- Type: `int`
+- Default: `24`
+- Allowed range: `4` to `200`
+- Meaning: when conversation history reaches this message count, the middleware starts summarizing
+
+#### `middleware.summarization.keep_messages`
+
+- Type: `int`
+- Default: `12`
+- Allowed range: `2` to `100`
+- Meaning: recent messages retained alongside the generated summary
+- Validation: must be smaller than `trigger_messages`
+
 ## Provider section
 
 Each provider entry under `providers` uses the same schema.
@@ -375,9 +500,33 @@ runtime:
   response_format: markdown
   answer_style: balanced
   default_output_mode: concise
+  log_level: INFO
+  third_party_log_level: WARNING
+  log_file: logs/lc_templates.log
   max_citations: 3
   routing_confidence_threshold: 0.55
-  rag_no_answer_message: "根据提供的上下文，我还不能可靠回答这个问题。"
+  rag_no_answer_message: "I cannot answer confidently from the provided context."
+  middleware:
+    profile: balanced
+    enabled: true
+    tool_call_limit_enabled: true
+    tool_call_limit: 6
+    model_fallback_enabled: false
+    dynamic_model_selection_enabled: false
+    dynamic_model_selection_message_threshold: 800
+    pii:
+      enabled: false
+      pii_types:
+        - email
+        - url
+      strategy: redact
+      apply_to_input: true
+      apply_to_output: false
+      apply_to_tool_results: false
+    summarization:
+      enabled: true
+      trigger_messages: 24
+      keep_messages: 12
 
 providers:
   ollama:
@@ -388,6 +537,7 @@ providers:
     chat_model: qwen3:4b
     reasoning_model: qwen3:4b
     embedding_model: bge-m3
+    embedding_dimensions: 1024
     rerank_model: ""
     temperature: 0.1
     request_timeout: 60

@@ -42,6 +42,7 @@ class OutputTests(unittest.TestCase):
         self.assertEqual(normalized.final_text, "final answer")
         self.assertEqual(normalized.used_tools, ["calculator"])
         self.assertEqual(normalized.tool_call_count, 1)
+        self.assertEqual(normalized.tool_calls[0].name, "calculator")
 
     def test_parse_json_model_accepts_markdown_fenced_json(self):
         text = """```json

@@ -1,4 +1,4 @@
-﻿runtime:
+runtime:
   active_provider: qwen
   rerank_provider: qwen
   http_proxy: null
@@ -18,8 +18,28 @@
   log_file: logs/lc_templates.log
   max_citations: 3
   routing_confidence_threshold: 0.55
-  rag_no_answer_message: "根据提供的上下文，我还不能可靠回答这个问题。"
-
+  rag_no_answer_message: "I cannot answer confidently from the provided context."
+  middleware:
+    profile: balanced
+    enabled: true
+    tool_call_limit_enabled: true
+    tool_call_limit: 6
+    model_fallback_enabled: false
+    pii:
+      enabled: false
+      pii_types:
+      - email
+      - url
+      strategy: redact
+      apply_to_input: true
+      apply_to_output: false
+      apply_to_tool_results: false
+    summarization:
+      enabled: true
+      trigger_messages: 24
+      keep_messages: 12
+    dynamic_model_selection_enabled: false
+    dynamic_model_selection_message_threshold: 800
 providers:
   openai:
     type: openai_compatible
@@ -30,11 +50,10 @@ providers:
     reasoning_model: gpt-5-mini
     embedding_model: text-embedding-3-small
     embedding_dimensions: 1536
-    rerank_model: ""
+    rerank_model: ''
     temperature: 0.1
     request_timeout: 20
     max_retries: 1
-
   qwen:
     type: openai_compatible
     enabled: true
@@ -48,7 +67,6 @@ providers:
     temperature: 0.1
     request_timeout: 200
     max_retries: 1
-
   deepseek:
     type: openai_compatible
     enabled: true
@@ -56,23 +74,22 @@ providers:
     base_url: https://api.deepseek.com/v1
     chat_model: deepseek-chat
     reasoning_model: deepseek-reasoner
-    embedding_model: ""
+    embedding_model: ''
     embedding_dimensions: null
-    rerank_model: ""
+    rerank_model: ''
     temperature: 0.1
     request_timeout: 20
     max_retries: 1
-
   ollama:
     type: ollama
     enabled: true
-    api_key: ""
+    api_key: ''
     base_url: http://localhost:11434
     chat_model: qwen3:4b
     reasoning_model: qwen3:4b
     embedding_model: bge-m3
     embedding_dimensions: 1024
-    rerank_model: ""
+    rerank_model: ''
     temperature: 0.1
     request_timeout: 60
     max_retries: 2

@@ -3,9 +3,10 @@ import os
 import tempfile
 import textwrap
 import unittest
+from pathlib import Path
 
 from lc_templates.app import TemplateApp
-from lc_templates.core.config import get_settings
+from lc_templates.core.config import MiddlewareSettings, get_settings, scaffold_config
 
 
 class ConfigTests(unittest.TestCase):
@@ -79,3 +80,33 @@ class ConfigTests(unittest.TestCase):
             self.assertEqual(get_settings().runtime.default_collection_name, "custom_collection")
         finally:
             os.unlink(temp_path)
+
+    def test_scaffold_config_creates_target_file(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target_path = Path(temp_dir) / "nested" / "config.yaml"
+            result = scaffold_config(str(target_path))
+            self.assertEqual(result, target_path)
+            self.assertTrue(target_path.exists())
+
+    def test_scaffold_config_refuses_to_overwrite_without_flag(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target_path = Path(temp_dir) / "config.yaml"
+            target_path.write_text("demo", encoding="utf-8")
+            with self.assertRaises(FileExistsError):
+                scaffold_config(str(target_path))
+
+    def test_middleware_profile_applies_balanced_defaults(self):
+        settings = MiddlewareSettings()
+        self.assertEqual(settings.profile, "balanced")
+        self.assertEqual(settings.tool_call_limit, 6)
+        self.assertFalse(settings.dynamic_model_selection_enabled)
+
+    def test_middleware_profile_applies_aggressive_defaults(self):
+        settings = MiddlewareSettings(profile="aggressive")
+        self.assertTrue(settings.model_fallback_enabled)
+        self.assertTrue(settings.dynamic_model_selection_enabled)
+        self.assertEqual(settings.tool_call_limit, 10)
+
+    def test_middleware_profile_allows_explicit_override(self):
+        settings = MiddlewareSettings(profile="safe", tool_call_limit=9)
+        self.assertEqual(settings.tool_call_limit, 9)

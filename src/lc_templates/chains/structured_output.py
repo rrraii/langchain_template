@@ -4,13 +4,26 @@ import json
 
 from pydantic import BaseModel
 
+from lc_templates.core.config import get_settings
+from lc_templates.core.hooks import emit_event
 from lc_templates.core.logging import get_logger
 from lc_templates.core.models import build_chat_model
 from lc_templates.core.output import coerce_response_text, parse_json_model, strip_json_fences
 from lc_templates.core.prompts import build_classification_prompt, build_extraction_prompt
-from lc_templates.core.schemas import ClassificationResult, ExtractionResult
+from lc_templates.core.schemas import ClassificationResult, ExecutionMetadata, ExtractionResult
 
 logger = get_logger(__name__)
+
+
+def _default_meta(operation: str) -> ExecutionMetadata:
+    settings = get_settings()
+    provider_name = settings.get_active_provider_name()
+    provider = settings.get_active_provider()
+    return ExecutionMetadata(
+        provider_name=provider_name,
+        model_name=provider.chat_model,
+        operation=operation,
+    )
 
 
 def _build_json_required_messages(prompt_value) -> list:
@@ -43,6 +56,13 @@ def _invoke_structured_with_fallback(prompt_value, schema: type[BaseModel]) -> B
             schema.__name__,
             exc,
         )
+        emit_event(
+            "structured_output.fallback",
+            level="WARNING",
+            message="Structured output failed; switching to JSON fallback.",
+            meta=_default_meta("structured_output"),
+            payload={"schema": schema.__name__, "error": str(exc)},
+        )
         fallback_prompt = _build_json_required_messages(prompt_value)
         raw_response = model.invoke(fallback_prompt)
         logger.debug("JSON fallback response received for schema=%s", schema.__name__)
@@ -58,6 +78,7 @@ def classify_text(text: str, labels: list[str]) -> ClassificationResult:
         result.label = label_map.get(normalized, labels[0])
     result.reason = result.reason.strip()
     result.confidence = min(1.0, max(0.0, float(result.confidence)))
+    result.meta = _default_meta("classify")
     return result
 
 
@@ -107,6 +128,7 @@ def _normalize_extraction_payload(payload: object) -> ExtractionResult:
         status=status,
         fallback_used=fallback_used,
         error_reason=error_reason,
+        meta=_default_meta("extract"),
     )
 
 
@@ -118,6 +140,7 @@ def _unavailable_extraction_result() -> ExtractionResult:
         status="unavailable",
         fallback_used=True,
         error_reason="double_fallback_failure",
+        meta=_default_meta("extract"),
     )
 
 
@@ -143,6 +166,12 @@ def extract_entities(text: str) -> ExtractionResult:
                 "Extraction recovered via tolerant JSON normalization. entity_count=%s",
                 len(result.entities),
             )
+            emit_event(
+                "extract.recovered",
+                message="Extraction recovered via tolerant JSON normalization.",
+                meta=_default_meta("extract"),
+                payload={"entity_count": len(result.entities)},
+            )
         except Exception as recovery_exc:
             logger.exception(
                 "Extraction tolerant recovery failed; returning unavailable result. error=%s",
@@ -159,5 +188,16 @@ def extract_entities(text: str) -> ExtractionResult:
         result.fallback_used,
         len(result.entities),
         bool(result.summary),
+    )
+    emit_event(
+        "extract.completed",
+        message="Extraction pipeline completed.",
+        meta=_default_meta("extract"),
+        payload={
+            "status": result.status,
+            "fallback_used": result.fallback_used,
+            "entity_count": len(result.entities),
+            "summary_present": bool(result.summary),
+        },
     )
     return result
