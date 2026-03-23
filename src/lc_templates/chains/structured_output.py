@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 def _default_meta(operation: str) -> ExecutionMetadata:
     settings = get_settings()
     provider_name = settings.get_active_provider_name()
-    provider = settings.get_active_provider()
+    provider = settings.get_provider_definition(provider_name)
     return ExecutionMetadata(
         provider_name=provider_name,
         model_name=provider.chat_model,

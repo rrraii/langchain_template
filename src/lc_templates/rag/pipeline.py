@@ -103,7 +103,7 @@ def _build_grounded_prompt(context: str, question: str) -> list[tuple[str, str]]
 def _default_rag_meta() -> ExecutionMetadata:
     settings = get_settings()
     provider_name = settings.get_active_provider_name()
-    provider = settings.get_active_provider()
+    provider = settings.get_provider_definition(provider_name)
     return ExecutionMetadata(
         provider_name=provider_name,
         model_name=provider.chat_model,

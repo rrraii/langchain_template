@@ -92,6 +92,7 @@ def collect_tool_records(result: dict[str, Any]) -> list[ToolCallRecord]:
 def extract_execution_metadata(result: dict[str, Any], operation: str = "") -> ExecutionMetadata:
     settings = get_settings()
     provider_name = settings.get_active_provider_name()
+    provider = settings.get_provider_definition(provider_name)
     model_name = ""
     for message in reversed(result.get("messages", [])):
         response_metadata = getattr(message, "response_metadata", {}) or {}
@@ -101,7 +102,7 @@ def extract_execution_metadata(result: dict[str, Any], operation: str = "") -> E
         if model_name:
             break
     if not model_name:
-        model_name = settings.get_active_provider().chat_model
+        model_name = provider.chat_model
     return ExecutionMetadata(
         provider_name=provider_name,
         model_name=model_name,
